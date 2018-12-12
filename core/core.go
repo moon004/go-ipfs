@@ -18,6 +18,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	version "github.com/ipfs/go-ipfs"
@@ -142,6 +143,7 @@ type IpfsNode struct {
 
 	proc goprocess.Process
 	ctx  context.Context
+	lk sync.RWMutex // only for things that change fields here, like SetupOfflineRouting
 
 	mode         mode
 	localModeSet bool
@@ -161,7 +163,7 @@ func (n *IpfsNode) startOnlineServices(ctx context.Context, routingOption Routin
 	}
 
 	// load private key
-	if err := n.LoadPrivateKey(); err != nil {
+	if err := n.loadPrivateKey(); err != nil {
 		return err
 	}
 
@@ -770,7 +772,7 @@ func (n *IpfsNode) loadID() error {
 	return nil
 }
 
-func (n *IpfsNode) LoadPrivateKey() error {
+func (n *IpfsNode) loadPrivateKey() error {
 	if n.Identity == "" || n.Peerstore == nil {
 		return errors.New("loaded private key out of order")
 	}
@@ -858,13 +860,16 @@ func (n *IpfsNode) loadFilesRoot() error {
 // SetupOfflineRouting instantiates a routing system in offline mode. This is
 // primarily used for offline ipns modifications.
 func (n *IpfsNode) SetupOfflineRouting() error {
+	n.lk.Lock()
+	defer n.lk.Unlock()
+
 	if n.Routing != nil {
 		// Routing was already set up
 		return nil
 	}
 
 	// TODO: move this somewhere else.
-	err := n.LoadPrivateKey()
+	err := n.loadPrivateKey()
 	if err != nil {
 		return err
 	}

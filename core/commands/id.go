@@ -177,7 +177,7 @@ func printSelf(node *core.IpfsNode) (interface{}, error) {
 	info.ID = node.Identity.Pretty()
 
 	if node.PrivateKey == nil {
-		if err := node.LoadPrivateKey(); err != nil {
+		if err := node.SetupOfflineRouting(); err != nil {
 			return nil, err
 		}
 	}

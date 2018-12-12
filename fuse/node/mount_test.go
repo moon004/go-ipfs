@@ -46,7 +46,7 @@ func TestExternalUnmount(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = node.LoadPrivateKey()
+	err = node.SetupOfflineRouting()
 	if err != nil {
 		t.Fatal(err)
 	}

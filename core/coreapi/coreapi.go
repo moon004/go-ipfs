@@ -17,6 +17,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/ipfs/go-ipfs/core"
 	coreiface "github.com/ipfs/go-ipfs/core/coreapi/interface"
@@ -177,23 +178,32 @@ func (api *CoreAPI) WithOptions(opts ...options.ApiOption) (coreiface.CoreAPI, e
 		parentOpts: settings,
 	}
 
+	var routingLk sync.Mutex
+	var offrt routing.IpfsRouting
+
 	subApi.routing = func(allowOffline bool) (routing.IpfsRouting, error) {
+		routingLk.Lock()
+		defer routingLk.Unlock()
+
 		if !n.OnlineMode() {
 			if !allowOffline {
-				return nil, coreiface.ErrOffline
+				return nil, coreiface.ErrOffline // node/api offline, want online
 			}
 			if err := n.SetupOfflineRouting(); err != nil {
 				return nil, err
 			}
 			subApi.privateKey = n.PrivateKey
 			subApi.namesys = n.Namesys
-			return n.Routing, nil
+			return n.Routing, nil // node/api offline
 		}
 		if !settings.Offline {
-			return n.Routing, nil
+			return n.Routing, nil // node/api online
 		}
 		if !allowOffline {
-			return nil, coreiface.ErrOffline
+			return nil, coreiface.ErrOffline // node online, api offline, want online
+		}
+		if offrt != nil {
+			return offrt, nil // node online, api offline, return cached offline
 		}
 
 		cfg, err := n.Repo.Config()
@@ -209,10 +219,10 @@ func (api *CoreAPI) WithOptions(opts ...options.ApiOption) (coreiface.CoreAPI, e
 			return nil, fmt.Errorf("cannot specify negative resolve cache size")
 		}
 
-		offroute := offlineroute.NewOfflineRouter(subApi.repo.Datastore(), subApi.recordValidator)
-		subApi.namesys = namesys.NewNameSystem(offroute, subApi.repo.Datastore(), cs)
+		offrt = offlineroute.NewOfflineRouter(subApi.repo.Datastore(), subApi.recordValidator)
+		subApi.namesys = namesys.NewNameSystem(offrt, subApi.repo.Datastore(), cs)
 
-		return offroute, nil
+		return offrt, nil // node online, api offline
 	}
 
 	subApi.isPublishAllowed = func() error {

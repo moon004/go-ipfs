@@ -117,7 +117,7 @@ func setupIpnsTest(t *testing.T, node *core.IpfsNode) (*core.IpfsNode, *mountWra
 			t.Fatal(err)
 		}
 
-		err = node.LoadPrivateKey()
+		err = node.SetupOfflineRouting()
 		if err != nil {
 			t.Fatal(err)
 		}
