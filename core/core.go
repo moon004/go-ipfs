@@ -143,7 +143,7 @@ type IpfsNode struct {
 
 	proc goprocess.Process
 	ctx  context.Context
-	lk sync.RWMutex // only for things that change fields here, like SetupOfflineRouting
+	lk   sync.RWMutex // only for things that change fields here, like SetupOfflineRouting
 
 	mode         mode
 	localModeSet bool
